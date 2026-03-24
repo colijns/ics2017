@@ -9,7 +9,7 @@ clean:
 	-$(MAKE) -C nanos-lite clean
 	-$(MAKE) -C navy-apps clean
 
-submit: clean
+:submit: clean
 	git gc
 	cd .. && tar cj $(shell basename `pwd`) > $(STU_ID).tar.bz2
 
