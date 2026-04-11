@@ -2,8 +2,7 @@
 #include "monitor/monitor.h"
 
 /* The assembly code of instructions executed is only output to the screen
- * when the number of instructions executed is less than this value.
- * This is useful when you use the `si' command.
+ * when the number of instructions executed is less than this value. * This is useful when you use the `si' command.
  * You can modify this value as you want.
  */
 #define MAX_INSTR_TO_PRINT 10
@@ -13,8 +12,7 @@ int nemu_state = NEMU_STOP;
 void exec_wrapper(bool);
 
 /* Simulate how the CPU works. */
-void cpu_exec(uint64_t n) {
-  if (nemu_state == NEMU_END) {
+void cpu_exec(uint64_t n) {                                                 printf("%lu\n", n);                                                      if (nemu_state == NEMU_END) {
     printf("Program execution has ended. To restart the program, exit NEMU and run again.\n");
     return;
   }
