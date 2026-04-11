@@ -96,12 +96,12 @@ static int cmd_help(char *args) {
 
 static int cmd_si(char *args) {
   /*get the steps number*/
-  uint64_t steps = 1;
-  if (args != NULL){
-    char *num_str = strtok(NULL, " ");
-    if (num_str != NULL) {
-      steps = atoi(num_str);
-    }
+  int steps;
+  if (args == NULL){
+    steps = 1;
+  }
+  else{
+    steps = atoi(strtok(NULL, " "));
   }
 
   cpu_exec(steps);
@@ -138,16 +138,14 @@ static int cmd_x(char *args) {
     printf("Input invalid command!\n");
   }
   else {
-    int num, i;
-    uint32_t addr;
+    int num, addr, i;
     char *exp;
-
     num = atoi(strtok(NULL, " "));
     exp = strtok(NULL, " ");
     addr = trans(exp);
 
     for (i = 0; i < num; i++) {
-      printf("0x%08x: 0x%08x\n", addr, vaddr_read(addr, 4));
+      printf("0x%x\n", vaddr_read(addr, 4));
       addr += 4;
     }
 
@@ -164,10 +162,10 @@ static int cmd_p(char *args) {
 
     bool success = true;
     //printf("args = %s\n", args);
-    uint32_t result = expr(args, &success);
+    int result = expr(args, &success);
 
     if (success) {
-      printf("result = 0x%08x (%d)\n", result, result);
+      printf("result = %d\n", result);
     }
     else {
       printf("Invalid expression!\n");
@@ -236,19 +234,17 @@ void ui_mainloop(int is_batch_mode) {
   }
 }
 
-
 int trans(char *e) {
-  if (e == NULL || strlen(e) < 3) return 0;
+  int len, num, i, j;
+  len = strlen(e);
+  num = 0;
+  j = 1;
 
-  uint32_t num = 0;
-  int i;
-
-   for (i = 2; e[i] != '\0'; i++) {
-    num = num * 16;
-    if (e[i] >= '0' && e[i] <= '9') {
-      num += e[i] - '0';
-    }
+  for (i = len-1; i > 1; i--) {
+    num += (e[i]-'0')*j;
+    j *= 16;
   }
+//  printf("num = %d\n", num);
 
   return num;
 }
