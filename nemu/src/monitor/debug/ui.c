@@ -1,6 +1,5 @@
 #include "monitor/monitor.h"
 #include "monitor/expr.h"
-#include "monitor/watchpoint.h"
 #include "nemu.h"
 
 #include <stdlib.h>
@@ -10,13 +9,9 @@
 int trans(char *e);
 void cpu_exec(uint64_t);
 void init_regex();
-void display_wp();
-void insert_wp(char *args);
-void delete_wp(int no);
 uint32_t expr(char *e, bool *success);
 uint32_t vaddr_read(vaddr_t addr, int len);
 
-/* We use the `readline' library to provide more flexibility to read from stdin. */
 char* rl_gets() {
   static char *line_read = NULL;
 
@@ -48,8 +43,6 @@ static int cmd_si(char *args);
 static int cmd_info(char *args);
 static int cmd_x(char *args);
 static int cmd_p(char *args);
-static int cmd_w(char *args);
-static int cmd_d(char *args);
 
 static struct {
   char *name;
@@ -60,24 +53,18 @@ static struct {
   { "c", "Continue the execution of the program", cmd_c },
   { "q", "Exit NEMU", cmd_q },
   { "si", "Let the program execute n steps", cmd_si },
-  { "info", "Display the register status and the watchpoint information", cmd_info},
-  { "x", "Caculate the value of expression and display the content of the address", cmd_x},
+  { "info", "Display the register status", cmd_info},
+  { "x", "Display the content of the address", cmd_x},
   { "p","Calculate an expression", cmd_p},
-  { "w", "Create a watchpoint", cmd_w},
-  { "d", "Delete a watchpoint", cmd_d},
-  /* TODO: Add more commands */
 };
 
 #define NR_CMD (sizeof(cmd_table) / sizeof(cmd_table[0]))
 
 static int cmd_help(char *args) {
-  /* extract the first argument */
   char *arg = strtok(NULL, " ");
-  //printf("111%s\n%s\n", args, arg);
   int i;
 
   if (arg == NULL) {
-    /* no argument given */
     for (i = 0; i < NR_CMD; i ++) {
       printf("%s - %s\n", cmd_table[i].name, cmd_table[i].description);
     }
@@ -95,13 +82,12 @@ static int cmd_help(char *args) {
 }
 
 static int cmd_si(char *args) {
-  /*get the steps number*/
-  int steps;
-  if (args == NULL){
-    steps = 1;
-  }
-  else{
-    steps = atoi(strtok(NULL, " "));
+  uint64_t steps = 1;
+  if (args != NULL){
+    char *num_str = strtok(NULL, " ");
+    if (num_str != NULL) {
+      steps = atoi(num_str);
+    }
   }
 
   cpu_exec(steps);
@@ -109,89 +95,61 @@ static int cmd_si(char *args) {
 }
 
 static int cmd_info(char *args) {
-  if (args == NULL) {
-    printf("Please input the info r or info w\n");
+  if (args == NULL || strcmp(args, "r") != 0) {
+    printf("Usage: info r\n");
+    return 0;
   }
-  else {
-    if (strcmp(args, "r") == 0) {
-      printf("eax:  0x%-10x    %-10d\n", cpu.eax, cpu.eax);
-      printf("edx:  0x%-10x    %-10d\n", cpu.edx, cpu.edx);
-      printf("ecx:  0x%-10x    %-10d\n", cpu.ecx, cpu.ecx);
-      printf("ebx:  0x%-10x    %-10d\n", cpu.ebx, cpu.ebx);
-      printf("ebp:  0x%-10x    %-10d\n", cpu.ebp, cpu.ebp);
-      printf("esi:  0x%-10x    %-10d\n", cpu.esi, cpu.esi);
-      printf("esp:  0x%-10x    %-10d\n", cpu.esp, cpu.esp);
-      printf("eip:  0x%-10x    %-10d\n", cpu.eip, cpu.eip);
-    }
-    else if (strcmp(args, "w") == 0) {
-      display_wp();
-    }
-    else {
-      printf("The info command need a parameter 'r' or 'w'\n");
-    }
-  }
+
+  printf("eax:  0x%-10x    %-10d\n", cpu.eax, cpu.eax);
+  printf("edx:  0x%-10x    %-10d\n", cpu.edx, cpu.edx);
+  printf("ecx:  0x%-10x    %-10d\n", cpu.ecx, cpu.ecx);
+  printf("ebx:  0x%-10x    %-10d\n", cpu.ebx, cpu.ebx);
+  printf("ebp:  0x%-10x    %-10d\n", cpu.ebp, cpu.ebp);
+  printf("esi:  0x%-10x    %-10d\n", cpu.esi, cpu.esi);
+  printf("esp:  0x%-10x    %-10d\n", cpu.esp, cpu.esp);
+  printf("eip:  0x%-10x    %-10d\n", cpu.eip, cpu.eip);
+
   return 0;
 }
 
 static int cmd_x(char *args) {
   if (args == NULL) {
-    printf("Input invalid command!\n");
+    printf("Usage: x <n> <addr>\n");
+    return 0;
   }
-  else {
-    int num, addr, i;
-    char *exp;
-    num = atoi(strtok(NULL, " "));
-    exp = strtok(NULL, " ");
-    addr = trans(exp);
 
-    for (i = 0; i < num; i++) {
-      printf("0x%x\n", vaddr_read(addr, 4));
-      addr += 4;
-    }
+  int num, i;
+  uint32_t addr;
+  char *exp;
 
+  num = atoi(strtok(NULL, " "));
+  exp = strtok(NULL, " ");
+  addr = trans(exp);
+
+  for (i = 0; i < num; i++) {
+    printf("0x%08x: 0x%08x\n", addr, vaddr_read(addr, 4));
+    addr += 4;
   }
+
   return 0;
 }
 
 static int cmd_p(char *args) {
   if (args == NULL) {
-    printf("Input invalid command! Please input the expression.\n");
+    printf("Usage: p <expression>\n");
+    return 0;
   }
-  else {
-    init_regex();
 
-    bool success = true;
-    //printf("args = %s\n", args);
-    int result = expr(args, &success);
+  init_regex();
+  bool success = true;
+  uint32_t result = expr(args, &success);
 
-    if (success) {
-      printf("result = %d\n", result);
-    }
-    else {
-      printf("Invalid expression!\n");
-    }
+  if (success) {
+    printf("result = 0x%08x (%d)\n", result, result);
+  } else {
+    printf("Invalid expression!\n");
   }
-  return 0;
-}
 
-static int cmd_w(char *args) {
-  if (args == NULL) {
-    printf("Input invalid command! Please input the expression.\n");
-  }
-  else {
-    insert_wp(args);
-  }
-  return 0;
-}
-
-static int cmd_d(char *args) {
-  if (args == NULL) {
-    printf("Input invalid command! Please input the NO.\n");
-  }
-  else {
-    int no = atoi(args);
-    delete_wp(no);
-  }
   return 0;
 }
 
@@ -205,22 +163,13 @@ void ui_mainloop(int is_batch_mode) {
     char *str = rl_gets();
     char *str_end = str + strlen(str);
 
-    /* extract the first token as the command */
     char *cmd = strtok(str, " ");
     if (cmd == NULL) { continue; }
 
-    /* treat the remaining string as the arguments,
-     * which may need further parsing
-     */
     char *args = cmd + strlen(cmd) + 1;
     if (args >= str_end) {
       args = NULL;
     }
-
-#ifdef HAS_IOE
-    extern void sdl_clear_event_queue(void);
-    sdl_clear_event_queue();
-#endif
 
     int i;
     for (i = 0; i < NR_CMD; i ++) {
@@ -235,16 +184,17 @@ void ui_mainloop(int is_batch_mode) {
 }
 
 int trans(char *e) {
-  int len, num, i, j;
-  len = strlen(e);
-  num = 0;
-  j = 1;
+  if (e == NULL || strlen(e) < 3) return 0;
 
-  for (i = len-1; i > 1; i--) {
-    num += (e[i]-'0')*j;
-    j *= 16;
+  uint32_t num = 0;
+  int i;
+
+  for (i = 2; e[i] != '\0'; i++) {
+    num = num * 16;
+    if (e[i] >= '0' && e[i] <= '9') {
+      num += e[i] - '0';
+    }
   }
-//  printf("num = %d\n", num);
 
   return num;
 }
