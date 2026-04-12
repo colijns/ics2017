@@ -1,8 +1,8 @@
 #ifndef __WATCHPOINT_H__
 #define __WATCHPOINT_H__
-
 #include "common.h"
 
+#define NR_WP 32
 typedef struct watchpoint {
   int NO;
   struct watchpoint *next;
@@ -10,7 +10,7 @@ typedef struct watchpoint {
   /* TODO: Add more members if necessary */
   char exp[128];         // 存储观察点表达式
   uint32_t value;        // 存储表达式上一次的值
-
+  int hitNum;
 } WP;
 
 void init_wp_pool();

@@ -41,6 +41,7 @@ void free_wp(WP *wp) {
 
 void insert_wp(char *args) {
     bool success = true;
+
     uint32_t val = expr(args, &success);
     if (!success) {
         printf("Error: invalid expr, create wp failed!\n");
@@ -49,7 +50,7 @@ void insert_wp(char *args) {
     WP *wp = new_wp();
     strncpy(wp->exp, args, sizeof(wp->exp)-1);
     wp->value = val;
-
+    wp->hitNum=0;
     if (head == NULL) {
         wp->NO = 1;
         head = wp;
@@ -92,29 +93,42 @@ void display_wp() {
         printf("No watchpoint\n");
         return;
     }
-    printf("NO\tEXPR\t\tVALUE\n");
+    printf("NO\tEXPR\t\tVALUEO\t\tHIT TIMES\n");
     WP *p = head;
     while (p) {
-        printf("%d\t%s\t\t0x%08x\n", p->NO, p->exp, p->value);
+        printf("%d\t%s\t\t0x%08x\t%d\n", p->NO, p->exp, p->value, p->hitNum); 
         p = p->next;
     }
 }
 
 int haschanged(int *changed_no, int max_len) {
-    memset(changed_no, -1, sizeof(int)*max_len);
+    if (changed_no != NULL) {
+        memset(changed_no, -1, sizeof(int)*max_len);
+    }
+
     if (head == NULL) return 0;
     WP *p = head;
     int idx = 0;
     bool success;
+
     while (p && idx < max_len-1) {
         success = true;
         uint32_t new_val = expr(p->exp, &success);
         if (success && new_val != p->value) {
-            changed_no[idx++] = p->NO;
+            printf("\n>>> Watchpoint %d triggered: %s\n", p->NO, p->exp);
+            printf("    Old value: 0x%08x\n", p->value);
+            printf("    New value: 0x%08x\n", new_val);
+            
             p->value = new_val;
+            p->hitNum++;
+            if (changed_no != NULL) {
+                changed_no[idx++] = p->NO;
+            }
         }
         p = p->next;
     }
-    changed_no[idx] = -1;
+    if (changed_no != NULL) {
+        changed_no[idx] = -1;
+    }
     return idx;
 }

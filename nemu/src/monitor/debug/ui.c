@@ -180,8 +180,8 @@ static int cmd_d(char *args) {
         printf("Usage: d [watchpoint NO.]\n");
         return 0;
     }
-    int no = atoi(args);
-    if (no <= 0) {
+    int no;
+    if (sscanf(args, "%d", &no) != 1 || no <= 0) {
         printf("Error: invalid watchpoint NO.\n");
         return 0;
     }
