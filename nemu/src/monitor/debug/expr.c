@@ -248,7 +248,15 @@ uint32_t eval(int p, int q, bool *success) {
 
 uint32_t expr(char *e, bool *success) {
     *success = true;
-    if (!make_token(e)) { *success = false; return 0; }
-    if (!judge_exp()) { *success = false; return 0; }
+    if (!make_token(e)) { 
+        *success = false; 
+        printf("[DEBUG expr] make_token failed\n"); // 加这个
+        return 0; 
+    }
+    if (!judge_exp()) { 
+        *success = false; 
+        printf("[DEBUG expr] judge_exp failed\n"); // 加这个
+        return 0; 
+    }
     return eval(0, nr_token-1, success);
 }
