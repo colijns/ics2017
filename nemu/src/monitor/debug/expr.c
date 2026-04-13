@@ -67,7 +67,6 @@ static bool make_token(char *e) {
         for (i = 0; i < NR_REGEX; i++) {
             if (regexec(&re[i], e + position, 1, &pmatch, 0) == 0 && pmatch.rm_so == 0) {
                 int len = pmatch.rm_eo - pmatch.rm_so;
-                 printf("[DEBUG] match: pos=%d, type=%d, len=%d, str=%.*s\n",position, rules[i].token_type, len, len, e+position);
                 switch (rules[i].token_type) {
                     case TK_NOTYPE: break;
                     case NUM: case REG: case HEX:
@@ -77,7 +76,6 @@ static bool make_token(char *e) {
                         nr_token++;
                         break;
                     default:
-                        printf("[DEBUG] default op: pos=%d, str=%c\n", position, e[position]);
                         tokens[nr_token].type = rules[i].token_type;
                         tokens[nr_token].str[0] = e[position];
                         tokens[nr_token].str[1] = '\0';
@@ -91,7 +89,6 @@ static bool make_token(char *e) {
             }
         }
         if (i == NR_REGEX) {
-            printf("[DEBUG] NO MATCH at pos=%d, char=%c\n", position, e[position]);
             printf("no match at %d\n", position);
             
             return false;
@@ -270,12 +267,10 @@ uint32_t expr(char *e, bool *success) {
     *success = true;
     if (!make_token(e)) { 
         *success = false; 
-        printf("[DEBUG expr] make_token failed\n"); // 加这个
         return 0; 
     }
     if (!judge_exp()) { 
         *success = false; 
-        printf("[DEBUG expr] judge_exp failed\n"); // 加这个
         return 0; 
     }
     return eval(0, nr_token-1, success);
