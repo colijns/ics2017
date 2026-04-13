@@ -139,25 +139,70 @@ bool check_parentheses(int p, int q) {
     return cnt == 0;
 }
 
-int find_dominant_operator(int p, int q) {
-    int pos = -1;
-    int min_pri = 999;
-    int cnt = 0;
-    for (int i = p; i <= q; i++) {
-        if (tokens[i].type == LBRACKET) cnt++;
-        else if (tokens[i].type == RBRACKET) cnt--;
-        if (cnt > 0) continue;
-        int pri = priority(i);
-        if (pri > 0 && pri <= min_pri) {
-            min_pri = pri;
-            pos = i;
+static int find_dominant_operator(int p, int q) {
+    int op_pos = -1;
+    int min_prio = 999;
+    int bracket = 0;
+
+    // 跳过开头的一元运算符（*、!）
+    while (p <= q) {
+        if (tokens[p].str[0] == '*' || tokens[p].str[0] == '!') {
+            p++;
+        } else {
+            break;
         }
     }
-    return pos;
-}
 
+    for (int i = p; i <= q; i++) {
+        if (tokens[i].type == LBRACKET) { bracket++; continue; }
+        if (tokens[i].type == RBRACKET) { bracket--; continue; }
+        if (bracket > 0) continue;
+
+        // 跳过一元运算符，不参与支配运算符选择
+        if (tokens[i].str[0] == '*' || tokens[i].str[0] == '!') {
+            continue;
+        }
+
+        int prio = 0;
+        switch (tokens[i].type) {
+            case ADD: case MINUS: prio = 1; break;
+            case MUL: case DIV:   prio = 2; break;
+            case TK_EQ: case NEQ: prio = 0; break;
+            case AND:             prio = -1; break;
+            case OR:              prio = -2; break;
+            default: return -1;
+        }
+
+        // 同优先级选最右边（左结合）
+        if (prio < min_prio) {
+            min_prio = prio;
+            op_pos = i;
+        } else if (prio == min_prio) {
+            op_pos = i;
+        }
+    }
+
+    return op_pos;
+}
 uint32_t eval(int p, int q, bool *success) {
     if (p > q) { *success = false; return 0; }
+    // 处理一元运算符：*（解引用）、!（逻辑非）
+    if (tokens[p].str[0] == '*' || tokens[p].str[0] == '!') {
+        if (tokens[p].str[0] == '*') {
+            // 一元解引用：递归得到地址，再读内存
+            uint32_t addr = eval(p + 1, q, success);
+            if (!*success) return 0;
+            *success = true;  // 重置成功标志
+            return vaddr_read(addr, 4);   // 读取4字节
+        }
+        if (tokens[p].str[0] == '!') {
+            // 逻辑非
+            uint32_t val = eval(p + 1, q, success);
+            if (!*success) return 0;
+            *success = true;
+            return !val;
+        }
+    }
     if (p == q) {
         if (tokens[p].type == NUM) return atoi(tokens[p].str);
         if (tokens[p].type == HEX) {
