@@ -141,10 +141,10 @@ bool check_parentheses(int p, int q) {
 
 static int find_dominant_operator(int p, int q) {
     int op_pos = -1;
-    int min_prio = 999;
+    int min_prio = 999; // 初始化为最大值，找最小优先级
     int bracket = 0;
 
-    // 跳过开头的一元运算符（*、!）
+    // 1. 跳过开头的一元运算符 (*、!)
     while (p <= q) {
         if (tokens[p].str[0] == '*' || tokens[p].str[0] == '!') {
             p++;
@@ -154,36 +154,39 @@ static int find_dominant_operator(int p, int q) {
     }
 
     for (int i = p; i <= q; i++) {
+        // 跳过括号
         if (tokens[i].type == LBRACKET) { bracket++; continue; }
         if (tokens[i].type == RBRACKET) { bracket--; continue; }
         if (bracket > 0) continue;
 
-        // 跳过一元运算符，不参与支配运算符选择
+        // 跳过中间的一元运算符
         if (tokens[i].str[0] == '*' || tokens[i].str[0] == '!') {
             continue;
         }
 
-        int prio = 0;
+        // 2. 确定优先级 (必须包含 AND/OR/TK_EQ/NEQ)
+        int prio = 999;
         switch (tokens[i].type) {
-            case ADD: case MINUS: prio = 1; break;
-            case MUL: case DIV:   prio = 2; break;
-            case TK_EQ: case NEQ: prio = 0; break;
-            case AND:             prio = -1; break;
-            case OR:              prio = -2; break;
-            default: return -1;
+            case MUL: case DIV:   prio = 3; break;
+            case ADD: case MINUS: prio = 2; break;
+            case TK_EQ: case NEQ: prio = 1; break; // == !=
+            case AND:             prio = 0; break; // && 优先级最低
+            case OR:              prio = -1; break;// || 优先级最低（注意：如果是-1，min_prio初始值要设为0，或者调整为-999）
+            default: continue; // 数字、寄存器等跳过
         }
 
-        // 同优先级选最右边（左结合）
+        // 3. 选择优先级最小（数值最小），且最右侧的运算符
         if (prio < min_prio) {
             min_prio = prio;
             op_pos = i;
         } else if (prio == min_prio) {
-            op_pos = i;
+            op_pos = i; // 同优先级选右边（左结合）
         }
     }
 
     return op_pos;
 }
+
 uint32_t eval(int p, int q, bool *success) {
     if (p > q) { *success = false; return 0; }
     // 处理一元运算符：*（解引用）、!（逻辑非）
