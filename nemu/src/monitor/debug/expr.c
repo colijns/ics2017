@@ -188,24 +188,11 @@ static int find_dominant_operator(int p, int q) {
 }
 
 uint32_t eval(int p, int q, bool *success) {
-    if (p > q) { *success = false; return 0; }
-    // 处理一元运算符：*（解引用）、!（逻辑非）
-    if (tokens[p].str[0] == '*' || tokens[p].str[0] == '!') {
-        if (tokens[p].str[0] == '*') {
-            // 一元解引用：递归得到地址，再读内存
-            uint32_t addr = eval(p + 1, q, success);
-            if (!*success) return 0;
-            *success = true;  // 重置成功标志
-            return vaddr_read(addr, 4);   // 读取4字节
-        }
-        if (tokens[p].str[0] == '!') {
-            // 逻辑非
-            uint32_t val = eval(p + 1, q, success);
-            if (!*success) return 0;
-            *success = true;
-            return !val;
-        }
+    if (p > q) { 
+        *success = false; 
+        return 0; 
     }
+    // 1. 处理单个token（数字、十六进制、寄存器）
     if (p == q) {
         if (tokens[p].type == NUM) return atoi(tokens[p].str);
         if (tokens[p].type == HEX) {
@@ -228,9 +215,32 @@ uint32_t eval(int p, int q, bool *success) {
         *success = false;
         return 0;
     }
-    if (check_parentheses(p,q)) return eval(p+1,q-1, success);
+    // 2. 处理括号
+    if (check_parentheses(p,q)) {
+        return eval(p+1, q-1, success);
+    }
+    // 3. 找支配运算符（二元运算符）
     int op = find_dominant_operator(p,q);
-    if (op == -1) { *success = false; return 0; }
+    // 4. 没有二元运算符 → 处理一元运算符（*、!）
+    if (op == -1) {
+        // 检查是否是一元运算符开头
+        if (tokens[p].str[0] == '*') {
+            // 一元解引用：求值后面的子表达式，再读内存
+            uint32_t addr = eval(p + 1, q, success);
+            if (!*success) return 0;
+            return vaddr_read(addr, 4);
+        } else if (tokens[p].str[0] == '!') {
+            // 逻辑非：求值后面的子表达式，再取反
+            uint32_t val = eval(p + 1, q, success);
+            if (!*success) return 0;
+            return !val;
+        } else {
+            // 既不是一元，也没有二元，非法表达式
+            *success = false;
+            return 0;
+        }
+    }
+    // 5. 有二元运算符：分左右子表达式，求值，再运算
     uint32_t l = eval(p, op-1, success);
     uint32_t r = eval(op+1, q, success);
     if (!*success) return 0;
@@ -239,13 +249,20 @@ uint32_t eval(int p, int q, bool *success) {
         case MINUS: return l - r;
         case MUL: return l * r;
         case DIV:
-            if (r == 0) { printf("Error: div zero\n"); *success = false; return 0; }
+            if (r == 0) { 
+                printf("Error: div zero\n"); 
+                *success = false; 
+                return 0; 
+            }
             return l / r;
         case AND: return l && r;
         case OR: return l || r;
         case TK_EQ: return l == r;
         case NEQ: return l != r;
-        default: *success = false; return 0;
+        default: 
+            printf("Error: unknown operator %d\n", tokens[op].type);
+            *success = false; 
+            return 0;
     }
 }
 
