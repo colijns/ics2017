@@ -114,7 +114,7 @@ static int cmd_info(char *args) {
         printf("eip:  0x%-10x    %-10d\n", cpu.eip, cpu.eip);
         printf("edi:  0x%-10x    %-10d\n", cpu.edi, cpu.edi);
     } else if (strcmp(args, "w") == 0) {
-        display_wp();
+        print_wp();
     } else {
         printf("Error: info only support r/w\n");
     }

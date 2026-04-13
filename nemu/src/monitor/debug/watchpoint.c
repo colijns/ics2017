@@ -88,17 +88,25 @@ void delete_wp(int no) {
     printf("Watchpoint %d deleted\n", no);
 }
 
-void display_wp() {
-    if (head == NULL) {
-        printf("No watchpoint\n");
-        return;
-    }
-    printf("NO\tEXPR\t\tVALUEO\t\tHIT TIMES\n");
-    WP *p = head;
-    while (p) {
-        printf("%d\t%s\t\t0x%08x\t%d\n", p->NO, p->exp, p->value, p->hitNum); 
-        p = p->next;
-    }
+
+void print_wp() {
+  // 如果没有监视点
+  if (head == NULL) {
+    printf("No watchpoints.\n");
+    return;
+  }
+
+  // 打印表头（格式对齐，好看）
+  printf("Num\tExpr\t\tHit\tValue\n");
+  WP *p = head;
+  while (p != NULL) {
+    printf("%d\t%s\t%d\t0x%08x\n", 
+           p->NO,     // 监视点编号
+           p->exp,      // 表达式（你用的是 e[32]）
+           p->hitNum, // 命中次数
+           p->value); // 旧值
+    p = p->next;
+  }
 }
 
 int haschanged(int *changed_no, int max_len) {
