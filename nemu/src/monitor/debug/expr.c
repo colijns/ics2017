@@ -138,10 +138,9 @@ bool check_parentheses(int p, int q) {
 
 static int find_dominant_operator(int p, int q) {
     int op_pos = -1;
-    int min_prio = 999; // 初始化为最大值，找最小优先级
+    int min_prio = 999; 
     int bracket = 0;
 
-    // 1. 跳过开头的一元运算符 (*、!)
     while (p <= q) {
         if (tokens[p].str[0] == '*' || tokens[p].str[0] == '!') {
             p++;
@@ -151,33 +150,29 @@ static int find_dominant_operator(int p, int q) {
     }
 
     for (int i = p; i <= q; i++) {
-        // 跳过括号
         if (tokens[i].type == LBRACKET) { bracket++; continue; }
         if (tokens[i].type == RBRACKET) { bracket--; continue; }
         if (bracket > 0) continue;
 
-        // 跳过中间的一元运算符
         if (tokens[i].str[0] == '*' || tokens[i].str[0] == '!') {
             continue;
         }
 
-        // 2. 确定优先级 (必须包含 AND/OR/TK_EQ/NEQ)
         int prio = 999;
         switch (tokens[i].type) {
             case MUL: case DIV:   prio = 3; break;
             case ADD: case MINUS: prio = 2; break;
-            case TK_EQ: case NEQ: prio = 1; break; // == !=
-            case AND:             prio = 0; break; // && 优先级最低
-            case OR:              prio = -1; break;// || 优先级最低（注意：如果是-1，min_prio初始值要设为0，或者调整为-999）
-            default: continue; // 数字、寄存器等跳过
+            case TK_EQ: case NEQ: prio = 1; break; 
+            case AND:             prio = 0; break; 
+            case OR:              prio = -1; break;
+            default: continue; 
         }
 
-        // 3. 选择优先级最小（数值最小），且最右侧的运算符
         if (prio < min_prio) {
             min_prio = prio;
             op_pos = i;
         } else if (prio == min_prio) {
-            op_pos = i; // 同优先级选右边（左结合）
+            op_pos = i; 
         }
     }
 
@@ -189,7 +184,6 @@ uint32_t eval(int p, int q, bool *success) {
         *success = false; 
         return 0; 
     }
-    // 1. 处理单个token（数字、十六进制、寄存器）
     if (p == q) {
         if (tokens[p].type == NUM) return atoi(tokens[p].str);
         if (tokens[p].type == HEX) {
@@ -212,32 +206,24 @@ uint32_t eval(int p, int q, bool *success) {
         *success = false;
         return 0;
     }
-    // 2. 处理括号
     if (check_parentheses(p,q)) {
         return eval(p+1, q-1, success);
     }
-    // 3. 找支配运算符（二元运算符）
     int op = find_dominant_operator(p,q);
-    // 4. 没有二元运算符 → 处理一元运算符（*、!）
     if (op == -1) {
-        // 检查是否是一元运算符开头
         if (tokens[p].str[0] == '*') {
-            // 一元解引用：求值后面的子表达式，再读内存
             uint32_t addr = eval(p + 1, q, success);
             if (!*success) return 0;
             return vaddr_read(addr, 4);
         } else if (tokens[p].str[0] == '!') {
-            // 逻辑非：求值后面的子表达式，再取反
             uint32_t val = eval(p + 1, q, success);
             if (!*success) return 0;
             return !val;
         } else {
-            // 既不是一元，也没有二元，非法表达式
             *success = false;
             return 0;
         }
     }
-    // 5. 有二元运算符：分左右子表达式，求值，再运算
     uint32_t l = eval(p, op-1, success);
     uint32_t r = eval(op+1, q, success);
     if (!*success) return 0;

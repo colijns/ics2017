@@ -90,21 +90,19 @@ void delete_wp(int no) {
 
 
 void print_wp() {
-  // 如果没有监视点
   if (head == NULL) {
     printf("No watchpoints.\n");
     return;
   }
 
-  // 打印表头（格式对齐，好看）
   printf("Num\tExpr\t\tHit\tValue\n");
   WP *p = head;
   while (p != NULL) {
     printf("%d\t%s\t%d\t0x%08x\n", 
-           p->NO,     // 监视点编号
-           p->exp,      // 表达式（你用的是 e[32]）
-           p->hitNum, // 命中次数
-           p->value); // 旧值
+           p->NO,     
+           p->exp,      
+           p->hitNum, 
+           p->value); 
     p = p->next;
   }
 }
